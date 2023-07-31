@@ -18,7 +18,6 @@ class Power:
         # latent data used for updating drag curve
         self.look_back_coeffs = np.zeros((self.look_back_length, self.fit_deg + 1))
         self.look_back_weights = np.zeros((self.look_back_length, self.look_back_length))
-        self.look_back_weights[1][1] = 1
 
         # drag curve
         self.av_coeffs = np.empty((self.fit_deg + 1,))
@@ -57,8 +56,7 @@ class Power:
 
         # normalize weight matrix
         norm_look_back_weights = np.divide(
-            self.look_back_weights, 
-            np.linalg.norm(self.look_back_weights, ord=1))
+            self.look_back_weights, np.sum(self.look_back_weights))
 
         # compute av curve using weighted average of coeffs
         weighted_coeffs = np.matmul(self.look_back_coeffs, norm_look_back_weights)
@@ -76,18 +74,27 @@ df = pd.read_csv(
     engine='python')
 
 # figure out how to determine these coast-down intervals from the data
-coast_down_start = 8219
-coast_down_end = 8351
-t = df['Time'].to_numpy(dtype=float)[coast_down_start:coast_down_end]
-v = df['Speed (MPH)'].to_numpy(dtype=float)[coast_down_start:coast_down_end]
+coast_down_start1 = 8219
+coast_down_end1 = 8351
+t1 = df['Time'].to_numpy(dtype=float)[coast_down_start1:coast_down_end1]
+v1 = df['Speed (MPH)'].to_numpy(dtype=float)[coast_down_start1:coast_down_end1]
 # convert to m/s
-v = np.divide(v, 2.237)
+v1 = np.divide(v1, 2.237)
+
+# pick another coast-down run
+coast_down_start2 = 2384
+coast_down_end2 = 2463
+t2 = df['Time'].to_numpy(dtype=float)[coast_down_start2:coast_down_end2]
+v2 = df['Speed (MPH)'].to_numpy(dtype=float)[coast_down_start2:coast_down_end2]
+# convert to m/s
+v2 = np.divide(v2, 2.237)
 
 m = 70
 p = Power(m)
 
 # provide a coast-down interval to update the power estimation
-p.update_drag_curve(t, v)
+p.update_drag_curve(t1, v1)
+p.update_drag_curve(t2, v2)
 
 test_speed = 10
 print(p.get_power(test_speed))
