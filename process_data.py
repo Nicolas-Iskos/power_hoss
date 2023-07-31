@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re 
 
-ride_number = 2
+ride_number = 3
 filepath = "/Users/josheverts/Downloads/ride_data_" + str(ride_number) + ".txt"
 print(filepath)
 speeds = []
@@ -55,13 +55,40 @@ grade = (altitude_change/distance_change) * 100
 # plt.plot(altitudes)
 # plt.plot(grade)
 # plt.show()
+# print(len(times))
+# print(len(speeds))
+# print(len(altitudes))
+# print(len(distances))
+# print(len(inclination))
+# ## gps lag correction
+# to_correct = [times, ]
+# len_time = len(times)
+# len_speed = len(speed)
+# len_altitude = len(altitudes)
+# len_distances = len(distances)
+# len_inclincation = len(inclination)
+
+# min_length = min(len_time, len_speeds, len_altitudes,
+#                     len_distances, len_inclination))
+
 
 ## export as csv data 
-export_dict = {'Time': times[1:],
-        'Speed (MPH)': speeds[1:], 
-        'Altitude': altitudes[1:], 
-        'Distance': distances[1:], 
+export_dict = {'Time': times,
+        'Speed (MPH)': speeds, 
+        'Altitude': altitudes, 
+        'Distance': distances, 
         'Incline': inclination}
+
+## because of processing hoss ensure all arrays are the length 
+## of the shortest array
+min_length = np.inf
+for value in export_dict.values():
+    if len(value) < min_length:
+        min_length = len(value)
+for key in export_dict.keys():
+    l = len(export_dict[key])
+    export_dict[key] = export_dict[key][l-min_length:]
+
 df_export = pd.DataFrame(export_dict)       
 df_export.to_csv("ride_" + str(ride_number) + "_cleaned.csv") 
 
