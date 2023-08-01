@@ -1,28 +1,26 @@
 from estimate_power import Power
 from get_coast_down import get_intervals
+from process_data import load_cleaned_data
 import numpy as np
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
+import globvars
+
 
 ## import ride data and find coast down intervals
-ride_number = 3
-filepath = "/Users/josheverts/power_hoss/ride_" + str(ride_number) + "_cleaned.csv"
-ride_data = pd.read_csv(filepath)
+ride_number = globvars.ride_number
+ride_data = load_cleaned_data(ride_number)
 v = np.array(ride_data['Speed (MPH)'])
-# print(np.mean(v)) 
 t = np.array(ride_data['Time'])
-# theta = np.repeat(0, len(v))
 theta = np.array(ride_data['Incline'])
 p = Power(98)
 coast_down_intervals = get_intervals(v)
-
 v_regions = []
 theta_regions = []
 for interval in coast_down_intervals:
     v_regions.append(v[interval[0]:interval[1]])
     theta_regions.append(theta[interval[0]:interval[1]])
-# print(v_regions)
 
 ## calculate power for each set of coefficients to see differences
 power_curves = []

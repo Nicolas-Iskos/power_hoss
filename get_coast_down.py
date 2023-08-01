@@ -1,15 +1,20 @@
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks, find_peaks_cwt
+from scipy.signal import hann
+from scipy.interpolate import interp1d
+from process_data import load_cleaned_data
+import globvars
 
-ride_number = 3
-filepath = "/Users/josheverts/power_hoss/ride_" + str(ride_number) + "_cleaned.csv"
-ride_data = pd.read_csv(filepath)
+## import ride data
+# filepath = "/Users/josheverts/power_hoss/ride_" + str(ride_number) + "_cleaned.csv"
+# ride_data = pd.read_csv(filepath)
+ride_number = globvars.ride_number
+ride_data = load_cleaned_data(ride_number)
 speeds = ride_data['Speed (MPH)']
 altitudes = ride_data['Altitude']
 grade = np.tan(ride_data['Incline'])*100
-
 
 ''' simple algorithm to find coast-down data:
     perform simple running average smoothing, then:
@@ -21,23 +26,27 @@ grade = np.tan(ride_data['Incline'])*100
 # min_stop_speed(mph) gives speed at which to stop a coast-down
 v_min = 17 
 v_stop = 5
+peak_sep = 20
 def coast_down(speeds, min_peak_speed = v_min, min_stop_speed = v_stop, 
                 peak_width = 15, peak_sep = 1):
 
-    ## perform moving average smoothing 
-    n_avg = 5
-    speeds = np.convolve(speeds, np.ones(n_avg)/n_avg)
+    ## low-pass filter bumps and noise greater than 2 hz
+    n_avg = 10
+    x = np.linspace(-np.pi/4,np.pi/4,n_avg)
+    kernel = np.sinc(x) 
+    kernel_norm = kernel/sum(kernel)
+    plt.plot(np.arange(0, len(speeds)), speeds) ## plot original speeds
+    speeds = np.convolve(speeds, kernel_norm)
+    plt.plot(np.arange(0,len(speeds)), speeds) ## plot smoothed speeds
+    plt.title('Smoothed and Raw Velocities')
+    plt.show()
     t = np.arange(len(speeds))
 
     ## Find indices of peaks
-    peak_idx, _ = find_peaks(speeds, height=min_peak_speed, 
-                                width=peak_width, distance = peak_sep)
+    peak_idx  = find_peaks_cwt(speeds, np.arange(5,15))
 
     ## Find indices of valleys (from inverting the signal)
-    ## inv_speed_threshold = (-1*speeds+coast_down_min_speed)+min_peak_speed
-    ## figure out peak width, width = 1/2 peak-width seems to work
-    valley_idx, _ = find_peaks(-1*speeds, height=-min_stop_speed, 
-                            width=peak_width/2)
+    valley_idx  = find_peaks_cwt(-speeds, np.arange(5,15))
 
     ## keep valley indices if valley immediately follows a peak
     ## save all peak indices
@@ -55,30 +64,33 @@ def coast_down(speeds, min_peak_speed = v_min, min_stop_speed = v_stop,
         if min_ind not in peak_matches:
             peak_matches.append(min_ind)
             valley_matches.append(valley_idx[i])
-        # print(peak_matches)
-        # print(valley_matches)
-    return peak_matches[1:], valley_matches, t
 
-peak_matches, valley_matches, t = coast_down(speeds)
+    return peak_matches[1:], valley_matches, speeds, t
+
+peak_matches, valley_matches, speeds, t = coast_down(speeds)
 
 def plot_peaks(t, speeds, min_peak_speed=v_min):
     # Plot signal
     plt.plot(t, speeds)
     plt.ylabel('v (mph)')
     plt.title("Calculated coast-down intervals")
+
     ## plot peak search range
-    plt.plot([min(t), max(t)], [min_peak_speed, min_peak_speed], '--')
-    plt.plot([min(t), max(t)], [-min_peak_speed, -min_peak_speed], '--')
+    plt.plot([min(t), max(t)], [v_min, v_min], '--')
+    plt.plot([min(t), max(t)], [-v_stop, -v_stop], '--')
+
     # Plot peaks (red) and valleys (blue)
     plt.plot(t[peak_matches], speeds[peak_matches], 'r.', label = 'start')
     plt.plot(t[valley_matches], speeds[valley_matches], 'b.', label = 'end')
     plt.legend()
     plt.show()
 
-plot_peaks(np.arange(len(speeds)), speeds)
+# plt.plot(speeds)
+# plt.show()
+# plot_peaks(np.arange(len(speeds)), speeds)
 
 def get_intervals(speeds):
-    peak_matches, valley_matches, t = coast_down(speeds)
+    peak_matches, valley_matches, speeds, t = coast_down(speeds)
     ranges = []
     for p, v in zip(peak_matches, valley_matches):
         ranges.append([p,v])
